@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="css/index.css" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Vue attachment -->
+        <div id="view">
+            <h1 class="header">RMQ with Root Blocks</h1>
+            <div class="view-pane">
+                <div class="choose-heading">Array Settings</div>
+                <div class="input-group">
+                    <div class="input-group-text">Array Size</div>
+                    <input type="number" v-model:value="array_size">
+                </div>
+                <div class="input-group">
+                    <div class="input-group-text">Is ordered</div>
+                    <input type="checkbox" v-model:value="is_ordered">
+                </div>
+                <div class="input-group">
+                    <div class="input-group-text">Show Array</div>
+                    <input type="checkbox" v-model:value="show_array">
+                </div>
+                <div class="rmq-start" @click="makeRMQMap" :class="{green: root_map.length != 0}">{{root_map_status}}</div>
+                <div v-if="root_map_status == 'Root Map Generated'">
+                    <div class="array-elements" v-if="show_array">
+                        <div v-for="(element,key) in array" class="block-element">
+                            <div v-if="key==0" class="block-separator"></div>
+                            <div>{{element}}</div>
+                            <div v-if="(key+1)%root_length == 0" class="block-separator"></div>
+                            <div v-else>,</div>
+                        </div>
+                    </div>
+                    <div class="choose-heading">Choose Range to Query</div>
+                    <div class="input-group">
+                        <div class="input-group-text">Start Index</div>
+                        <input type="number" v-model:value="start_index">
+                    </div>
+                    <div class="input-group">
+                        <div class="input-group-text">End Index</div>
+                        <input type="number" v-model:value="end_index">
+                    </div>
+                    <div class="rmq-start" @click="startRMQ">Start RMQ</div>
+                    <div>
+                        <dic class="bold">Stats:</dic>
+                        <div>Left Scanned: {{stats.left_scanned}}</div>
+                        <div>Right Scanned: {{stats.right_scanned}}</div>
+                        <div>Blocks Referenced: {{stats.blocks_referenced}}</div>
+                        <div>Internal Scanned (proper subset of block): {{stats.internal_scanned}}</div>
+                    </div>
+                    <div class="minimum-value">Min Value: {{minimum_value}}&nbsp;&nbsp;&nbsp;&nbsp;Min Index: {{minimum_index}}</div>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="js/index.js"></script>
+</html>

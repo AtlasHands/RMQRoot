@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="css/index.css" rel="stylesheet">
+    </head>
+    <style>
+    .view-pane {
+        position: relative;
+        width: 40rem;
+        margin: 0 auto;
+        margin-top: 1rem;
+        background-color: whitesmoke;
+        border: 2px solid gainsboro;
+        box-shadow: 2px 2px gainsboro;
+        padding: 2rem;
+    }
+    .green {
+        background-color: #2ecc71 !important;
+        border: 1px solid #27ae60 !important;
+    }
+    .array-elements {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        margin-bottom: 18px;
+    }
+    .header {
+        text-align: center;
+    }
+        .minimum-value {
+        text-align: center;
+        margin-top: 30px;
+        font-weight: bold;
+    }
+    .bold {
+        font-weight: bold;
+    }
+    .block-element {
+        display: flex;
+    }
+    .choose-heading {
+        font-weight: bold;
+        text-align: center;
+    }
+    .block-separator {
+        width: 2px;
+        height: 20px;
+        margin-left: 4px;
+        margin-right: 4px;
+        background-color: green;
+    }
+    .array-elements {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .input-group {
+        display: flex;
+        justify-content: center;
+        width: 40%;
+        margin: 0 auto;
+        margin-top: 1rem;
+    }
+    .input-group input {
+        margin-left: 0.5rem;
+    }
+    .input-group .input-group-text {
+        width: 10rem;
+    }
+    .rmq-start {
+        width: 10rem;
+        margin: 0 auto;
+        padding: 0.5rem;
+        background-color: dodgerblue;
+        border-radius: 0.125rem;
+        border: 1px solid royalblue;
+        margin-top: 0.25rem;
+        margin-bottom: 0.25rem;
+        cursor: pointer;
+        user-select: none;
+        color: white;
+        text-align: center;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }    
+    </style>
+    <body>
+        <!-- Vue attachment -->
+        <div id="view">
+            <h1 class="header">RMQ with Root Blocks</h1>
+            <div class="view-pane">
+                <div class="choose-heading">Array Settings</div>
+                <div class="input-group">
+                    <div class="input-group-text">Array Size</div>
+                    <input type="number" v-model:value="array_size">
+                </div>
+                <div class="input-group">
+                    <div class="input-group-text">Is ordered</div>
+                    <input type="checkbox" v-model:value="is_ordered">
+                </div>
+                <div class="input-group">
+                    <div class="input-group-text">Show Array</div>
+                    <input type="checkbox" v-model:value="show_array">
+                </div>
+                <div class="rmq-start" @click="makeRMQMap" :class="{green: root_map.length != 0}">{{root_map_status}}</div>
+                <div v-if="root_map_status == 'Root Map Generated'">
+                    <div class="array-elements" v-if="show_array">
+                        <div v-for="(element,key) in array" class="block-element">
+                            <div v-if="key==0" class="block-separator"></div>
+                            <div>{{element}}</div>
+                            <div v-if="(key+1)%root_length == 0" class="block-separator"></div>
+                            <div v-else>,</div>
+                        </div>
+                    </div>
+                    <div class="choose-heading">Choose Range to Query</div>
+                    <div class="input-group">
+                        <div class="input-group-text">Start Index</div>
+                        <input type="number" v-model:value="start_index">
+                    </div>
+                    <div class="input-group">
+                        <div class="input-group-text">End Index</div>
+                        <input type="number" v-model:value="end_index">
+                    </div>
+                    <div class="rmq-start" @click="startRMQ">Start RMQ</div>
+                    <div>
+                        <dic class="bold">Stats:</dic>
+                        <div>Left Scanned: {{stats.left_scanned}}</div>
+                        <div>Right Scanned: {{stats.right_scanned}}</div>
+                        <div>Blocks Referenced: {{stats.blocks_referenced}}</div>
+                        <div>Internal Scanned (proper subset of block): {{stats.internal_scanned}}</div>
+                    </div>
+                    <div class="minimum-value">Min Value: {{minimum_value}}&nbsp;&nbsp;&nbsp;&nbsp;Min Index: {{minimum_index}}</div>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script>
+        new Vue({
+            el: "#view",
+            data: {
+                array_size: 100,
+                is_ordered: true,
+                root_map_status: "Make RMQ Root Map",
+                show_array: false,
+                settings: {
+                    array_size: undefined,
+                    is_ordered: undefined,
+                },
+                stats:{
+                    blocks_referenced: undefined,
+                    left_scanned: undefined,
+                    right_scanned: undefined,
+                    internal_scanned: undefined
+                },
+                array: [],
+                root_length: undefined,
+                root_map: [],
+                minimum_value: undefined,
+                minimum_index: undefined,
+                start_index: 0,
+                end_index: 0,
+            },
+            methods:{
+                startRMQ: function(){
+                    let left = parseInt(this.start_index);
+                    let right = parseInt(this.end_index);
+                    let min_left = Infinity;
+                    let min_left_index = undefined;
+                    let min_right = Infinity;
+                    let min_right_index = undefined;
+                    let internal_scanned = 0;
+                    //Adding this.root_length to combat less than root_length numbers being 0
+                    let left_to_scan = this.root_length-((left+this.root_length)%this.root_length);
+                    //Issue occurs when the left to scan is equal to the root length, it should be zero
+                    if(left_to_scan == this.root_length){
+                        left_to_scan = 0;
+                    }
+                    let right_to_scan = (right+1+this.root_length)%this.root_length
+                    let left_border = left_to_scan+left;
+                    let right_border = (right+1) - right_to_scan;
+                    let internal_blocks = Math.floor((right_border-left_border)/this.root_length)
+                    //If we have 0 internal blocks, we only need to explicitly check the range
+                    if(internal_blocks < 0){
+                        internal_scanned = right-left+1;
+                        internal_blocks = 0;
+                        left_to_scan = 0;
+                        right_to_scan = 0;
+                        min_internal = Infinity
+                        min_index = 0;
+                        //if we are just internal, we can just scan the range
+                        for(let x = left;x<right;x++){
+                            if(this.array[x] < min_internal){
+                                min_internal = this.array[x]
+                                min_index = x;
+                            }
+                        }
+                        this.minimum_index = min_index;
+                        this.minimum_value = min_internal;
+                    }else{
+                        //Scan left
+                        if(left_to_scan != 0){
+                            for(let x = 0;x<=left_to_scan;x++){
+                                console.log(left_border-x)
+                                let value = this.array[left_border-x]
+                                if(value < min_left){
+                                    min_left = value
+                                    min_left_index = left_border-x;
+                                }
+                            }
+                        }
+                        //Scan right
+                        if(right_to_scan != 0){
+                            for(let x = 0;x<right_to_scan;x++){
+                                let value = this.array[right-x]
+                                if(value < min_right){
+                                    min_right = value
+                                    min_right_index = right-x
+                                }
+                            }
+                        }
+                        //Reference calculated block values
+                        let block_start = (left_border/this.root_length)
+                        let min_of_blocks = Infinity;
+                        let min_block_index = undefined
+                        for(let x = 0;x<internal_blocks;x++){
+                            let min_of_block = this.root_map[block_start+x][0]
+                            if(min_of_block < min_of_blocks){
+                                min_of_blocks = min_of_block
+                                min_block_index = this.root_map[block_start+x][1]
+                            }
+                        }
+                        //Get the minimum value
+                        if(min_right < min_left && min_right < min_of_blocks){
+                            this.minimum_value = min_right
+                            this.minimum_index = min_right_index
+                        }else if(min_left < min_right && min_left < min_of_blocks){
+                            this.minimum_value = min_left
+                            this.minimum_index = min_left_index
+                        }else if(min_of_blocks < min_right && min_of_blocks < min_left){
+                            this.minimum_value = min_of_blocks
+                            this.minimum_index = min_block_index
+                        }
+                    }
+                    //Set values for the UI
+                    this.stats.blocks_referenced = internal_blocks;
+                    this.stats.right_scanned = right_to_scan;
+                    this.stats.left_scanned = left_to_scan;
+                    this.stats.internal_scanned = internal_scanned
+                },
+                makeRMQMap: function(){
+                    //Set values that reflect RMQ run settings
+                    this.settings.array_size = this.array_size
+                    this.settings.is_ordered = this.is_ordered
+                    let arr = []
+                    if(this.settings.is_ordered){
+                        arr = this.genOrderedArray()
+                    }else{
+                        arr = this.genRandomArray()
+                    }
+                    this.array = arr
+                    //Vue requires this to be reflective
+                    Vue.set(this,"root_map",this.makeMap(arr))
+                    this.root_map_status = "Root Map Generated"
+                },
+                //Make the map based on the root blocks
+                makeMap: function(array){
+                    this.root_length = Math.ceil(Math.pow(array.length,.5))
+                    let min_roots = []
+                    let current_min = Infinity
+                    let min_index = undefined
+                    let current_progress = 0;
+                    for(let x = 0;x<array.length;x++){
+                        if(array[x] < current_min){
+                            current_min = array[x]
+                            min_index = x;
+                        }
+                        current_progress++;
+                        if(current_progress == this.root_length){
+                            current_progress = 0;
+                            min_roots.push([current_min,min_index]);
+                            current_min = Infinity
+                        }
+                    }
+                    return min_roots;
+                },
+                //Get random array (unsorted)
+                genRandomArray: function(){
+                    let arr = []
+                    for(let x = 0;x<this.settings.array_size;x++){
+                        arr[x] = Math.floor(Math.random() * 99999999);
+                    }
+                    return arr;
+                },
+                //Get ordered array (value = index)
+                genOrderedArray: function(){
+                    let arr = []
+                    for(let x = 0;x<this.settings.array_size;x++){
+                        arr[x] = x;
+                    }
+                    return arr;
+                }
+            }
+            
+        })
+    </script>
+</html>
